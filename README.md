@@ -60,6 +60,9 @@ This was, by far, the biggest source of pain in this project. Two programmer typ
 
 | **USB Tiny AVR Programmer ("FabISP")** with onboard 8-pin ZIF-style socket | ✅ Worked on the very first try | `-c usbtiny` |
 
+
+<img width="445" height="483" alt="qq" src="https://github.com/user-attachments/assets/08a44cea-86d9-4380-a8f6-091ae7482b16" />
+
 **Key lesson:** the difference wasn't the chips, the fuses, or the code — it was **hand-wired breadboard ISP connections being unreliable**. A programmer with its own **built-in chip socket** (no hand-wiring required for the 6 ISP signals) eliminated the entire failure category in one shot.
 
 If you're starting this project fresh: **buy a programmer with an onboard DIP-8 ZIF/socket** (like a FabISP-style board) rather than a bare USBASP + adapter cable + breadboard jumpers. It costs about the same and will save you hours.
