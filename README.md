@@ -9,7 +9,7 @@ A standalone, battery-powered "token fob" that displays a rotating 6-digit rando
 <sub><b>The AtTiny85 "bug" </b></sub>
 </td>
 <td align="center" width="50%">
-<img src="https://github.com/user-attachments/assets/2666dacc-7c1a-4d5f-9ec1-4b3889b13e3e width="380"><br>
+<img src="https://github.com/user-attachments/assets/2666dacc-7c1a-4d5f-9ec1-4b3889b13e3e" width="380"><br>
 <sub><b>Six Digit Code, with 60 second counter!</b></sub>
 </td>
 </tr>
