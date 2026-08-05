@@ -64,8 +64,8 @@ This was, by far, the biggest source of pain in this project. Two programmer typ
 
 | Programmer | Result | avrdude flag | Photo |
 |---|---|---|---|
-| **USBASP** (10-pin, with 6-pin ISP adapter) | ❌ Never got a successful handshake, across 3 different chips, multiple breadboard positions, multiple wire swaps | `-c usbasp` | <img src="https://github.com/user-attachments/assets/a539ebb2-86d2-4420-870b-daad665597cb" width="140"> |
-| **USB Tiny AVR Programmer ("FabISP")** with onboard 8-pin ZIF-style socket | ✅ Worked on the very first try | `-c usbtiny` | <img src="https://github.com/user-attachments/assets/08a44cea-86d9-4380-a8f6-091ae7482b16" width="140"> |
+| **USBASP** (10-pin, with 6-pin ISP adapter) | ❌ Never got a successful handshake, across 3 different chips, multiple breadboard positions, multiple wire swaps | `-c usbasp` | <img src="https://github.com/user-attachments/assets/08a44cea-86d9-4380-a8f6-091ae7482b16" width="140"> |
+| **USB Tiny AVR Programmer ("FabISP")** with onboard 8-pin ZIF-style socket | ✅ Worked on the very first try | `-c usbtiny` |<img src="https://github.com/user-attachments/assets/a539ebb2-86d2-4420-870b-daad665597cb" width="140">  |
 
 **Key lesson:** the difference wasn't the chips, the fuses, or the code — it was **hand-wired breadboard ISP connections being unreliable**. A programmer with its own **built-in chip socket** (no hand-wiring required for the 6 ISP signals) eliminated the entire failure category in one shot.
 
