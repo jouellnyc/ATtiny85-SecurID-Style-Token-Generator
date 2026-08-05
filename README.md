@@ -12,9 +12,10 @@ A standalone, battery-powered "token fob" that displays a rotating 6-digit rando
 
 - Boots standalone (no computer attached) off a 5V source
 - Displays a random 6-digit code on a 128x64 I2C OLED
-- Rotates to a new random code every 30 seconds
+- Rotates to a new random code every n seconds
 - Runs entirely from an 8-pin DIP chip with 8KB flash / 512B RAM — no OS, no bootloader in the traditional sense
 
+NB: This is intended for fun as is not meant to be secure in any manner.
 ---
 
 ## Requirements
