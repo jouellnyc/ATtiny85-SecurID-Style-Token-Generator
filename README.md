@@ -2,6 +2,8 @@
 
 A standalone, battery-powered "token fob" that displays a rotating 6-digit random code on a tiny OLED screen — like an old-school RSA SecurID hardware token — built from a bare ATtiny85 chip on a breadboard.
 
+<img width="689" height="564" alt="qq" src="https://github.com/user-attachments/assets/fab10e43-40af-4404-8fa8-3cb2b5b4ccb9" />
+
 <img width="527" height="502" alt="qq" src="https://github.com/user-attachments/assets/13b59ee5-3fce-4b27-a65f-71676dc401d2" />
 
 ---
