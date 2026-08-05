@@ -21,7 +21,8 @@ A standalone, battery-powered "token fob" that displays a rotating 6-digit rando
 
 - Boots standalone (no computer attached) off a 5V source
 - Displays a random 6-digit code on a 128x64 I2C OLED
-- Rotates to a new random code every n seconds
+- Rotates to a new random code every 60 seconds
+- Shows a real SecurID-style visual countdown: a vertical bar stack that melts away one segment every 10 seconds until the code refreshes
 - Runs entirely from an 8-pin DIP chip with 8KB flash / 512B RAM — no OS, no bootloader in the traditional sense
 
 NB: This is intended for fun as is not meant to be secure in any manner.
@@ -64,8 +65,8 @@ This was, by far, the biggest source of pain in this project. Two programmer typ
 
 | Programmer | Result | avrdude flag | Photo |
 |---|---|---|---|
-| **USBASP** (10-pin, with 6-pin ISP adapter) | ❌ Never got a successful handshake, across 3 different chips, multiple breadboard positions, multiple wire swaps | `-c usbasp` | <img src="https://github.com/user-attachments/assets/08a44cea-86d9-4380-a8f6-091ae7482b16" width="140"> |
-| **USB Tiny AVR Programmer ("FabISP")** with onboard 8-pin ZIF-style socket | ✅ Worked on the very first try | `-c usbtiny` |<img src="https://github.com/user-attachments/assets/a539ebb2-86d2-4420-870b-daad665597cb" width="140">  |
+| **USBASP** (10-pin, with 6-pin ISP adapter) | ❌ Never got a successful handshake, across 3 different chips, multiple breadboard positions, multiple wire swaps | `-c usbasp` | <img src="https://github.com/user-attachments/assets/a539ebb2-86d2-4420-870b-daad665597cb" width="140"> |
+| **USB Tiny AVR Programmer ("FabISP")** with onboard 8-pin ZIF-style socket | ✅ Worked on the very first try | `-c usbtiny` | <img src="https://github.com/user-attachments/assets/08a44cea-86d9-4380-a8f6-091ae7482b16" width="140"> |
 
 **Key lesson:** the difference wasn't the chips, the fuses, or the code — it was **hand-wired breadboard ISP connections being unreliable**. A programmer with its own **built-in chip socket** (no hand-wiring required for the 6 ISP signals) eliminated the entire failure category in one shot.
 
@@ -166,6 +167,13 @@ region `text' overflowed by 684 bytes
 - **Fix:** `Tools → Burn Bootloader` once (with ATTinyCore this only sets fuses, no actual bootloader is written), then re-upload the sketch.
 - **Lesson:** Always run "Burn Bootloader" once on any freshly-acquired or previously-unconfigured chip, or any time the Tools → Clock setting changes — skipping it leaves fuses mismatched with what your code assumes.
 
+### 10. Countdown bar segments visually merged into one solid bar
+- Stacked 6 solid 8x8 `drawTile()` segments vertically to build a SecurID-style countdown bar. At full height, all 6 looked like one indistinguishable solid column instead of 6 separate blocks.
+- First attempt to fix it cleared the last byte of the tile array (`{0xFF,...,0xFF,0x00}`), assuming each byte was a horizontal row — this had no visible effect.
+- **Real cause:** in U8x8's `drawTile()` format, each byte in the 8-byte array is a **vertical column**, not a horizontal row — bit 0 is the top pixel, bit 7 is the bottom pixel, moving left to right across columns. Clearing only the last byte just blanked a thin vertical sliver on the tile's right edge, not a horizontal seam.
+- **Fix:** clear the *bottom bit of every column* instead — `{0x7F,0x7F,0x7F,0x7F,0x7F,0x7F,0x7F,0x7F}` (`0x7F` = `01111111`, bottom pixel off, top 7 pixels on). This produces a real 1px horizontal gap between every stacked tile.
+- **Lesson:** don't assume a graphics library's byte-to-pixel mapping — check the actual bit orientation (row-major vs. column-major) before hand-building bitmap tiles.
+
 ---
 
 ## Hardware Tried — What Worked, What Didn't
@@ -184,14 +192,29 @@ region `text' overflowed by 684 bytes
 
 ## Final Code
 
+Includes a real SecurID-style visual countdown: a vertical stack of 6 bar segments on the left edge of the screen, one segment "melting" away every 10 seconds, resetting to full height with a new code every 60 seconds.
+
 ```cpp
 #include <U8x8lib.h>
 
 U8X8_SSD1306_128X64_NONAME_SW_I2C u8x8(/* clock=*/ 2, /* data=*/ 0, /* reset=*/ U8X8_PIN_NONE);
 
 const int ENTROPY_PIN = A3; // physical pin 2 (PB3) — leave unconnected/floating
-unsigned long lastRefresh;
-const unsigned long REFRESH_MS = 30000; // 30 seconds, like a real SecurID fob
+const unsigned long CYCLE_MS = 60000;      // full cycle length
+const unsigned long BAR_MS = 10000;        // one bar segment = 10 seconds
+const uint8_t NUM_BARS = 6;
+const uint8_t BAR_COL = 0;                 // leftmost tile column
+const uint8_t BAR_START_ROW = 1;           // first bar segment row (leaves a little top margin)
+
+unsigned long cycleStart = 0;
+int8_t barsShown = NUM_BARS;
+
+// Solid tile with bottom pixel row cleared across all columns — creates a visible
+// horizontal seam between stacked segments (without this, adjacent solid tiles
+// merge into one indistinguishable bar). Each byte in a U8x8 tile is a VERTICAL
+// column, bit0=top pixel..bit7=bottom pixel — 0x7F clears just the bottom bit.
+const uint8_t tile_full[8]  = {0x7F,0x7F,0x7F,0x7F,0x7F,0x7F,0x7F,0x7F};
+const uint8_t tile_empty[8] = {0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00};
 
 void generateAndShowCode() {
   char code[7];
@@ -200,9 +223,24 @@ void generateAndShowCode() {
   }
   code[6] = '\0';
 
-  u8x8.clear();
+  u8x8.clearLine(2);
+  u8x8.clearLine(3);
+  u8x8.clearLine(4);
   u8x8.setFont(u8x8_font_courB18_2x3_n); // numeric-only variant — fits in 8KB flash
-  u8x8.drawString(2, 2, code);            // x=2 centers a 12-tile string on a 16-tile-wide screen
+  u8x8.drawString(3, 3, code);            // shifted right to leave room for the bar column
+}
+
+void drawAllBars() {
+  for (uint8_t b = 0; b < NUM_BARS; b++) {
+    u8x8.drawTile(BAR_COL, BAR_START_ROW + b, 1, tile_full);
+  }
+  barsShown = NUM_BARS;
+}
+
+void clearTopBar() {
+  // depletes top-down: oldest segment disappears first
+  uint8_t idx = NUM_BARS - barsShown;
+  u8x8.drawTile(BAR_COL, BAR_START_ROW + idx, 1, tile_empty);
 }
 
 void setup() {
@@ -213,13 +251,24 @@ void setup() {
   randomSeed(analogRead(ENTROPY_PIN) + micros());
 
   generateAndShowCode();      // shows a code immediately
-  lastRefresh = millis();     // starts the 30s clock AFTER first display
+  drawAllBars();              // full-height bar stack
+  cycleStart = millis();      // starts the 60s clock AFTER first display
 }
 
 void loop() {
-  if (millis() - lastRefresh >= REFRESH_MS) {
+  unsigned long elapsed = millis() - cycleStart;
+
+  if (elapsed >= CYCLE_MS) {
     generateAndShowCode();
-    lastRefresh = millis();
+    drawAllBars();
+    cycleStart = millis();
+    return;
+  }
+
+  int8_t barsRemaining = NUM_BARS - (elapsed / BAR_MS);
+  while (barsShown > barsRemaining) {
+    clearTopBar();
+    barsShown--;
   }
 }
 ```
@@ -255,6 +304,7 @@ bool ledState = false;
 7. **Never put a capacitor on RESET** — it interferes with the programmer's reset pulse and causes "target does not answer."
 8. **USB switches/hubs can look like flaky hardware in `dmesg`** — rule out manual toggling before chasing a hardware fault.
 9. Continuity testing with a multimeter is a real skill — don't over-trust a single reading if you're not experienced with the tool; corroborate with a second method (voltage checks, physical inspection, or swapping the whole component) before concluding.
+10. **U8x8's `drawTile()` bytes are vertical columns, not horizontal rows** — when hand-building bitmap tiles (e.g., bar graph segments), verify the bit orientation first rather than guessing, or a "fix" can silently do nothing visible.
 
 ---
 
